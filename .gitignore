@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# DevLog local data (created at install target, not in this repo)
+.devlog/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
