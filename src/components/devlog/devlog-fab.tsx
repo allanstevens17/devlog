@@ -14,6 +14,7 @@ interface DevLogFABProps {
   onNewEntry: (type: EntryType) => void;
   onViewEntries: () => void;
   entryCount: number;
+  pageEntryCount: number;
 }
 
 export function DevLogFAB({
@@ -23,6 +24,7 @@ export function DevLogFAB({
   onNewEntry,
   onViewEntries,
   entryCount,
+  pageEntryCount,
 }: DevLogFABProps) {
   return (
     <div className="fixed bottom-4 right-4 z-[9999]">
@@ -72,7 +74,7 @@ export function DevLogFAB({
               }}
             >
               <ListTodo className="h-4 w-4" />
-              + Change Request
+              Change Request
             </Button>
             <Button
               variant="ghost"
@@ -83,7 +85,7 @@ export function DevLogFAB({
               }}
             >
               <Bug className="h-4 w-4" />
-              + Bug Report
+              Bug Report
             </Button>
             <Button
               variant="ghost"
@@ -94,7 +96,7 @@ export function DevLogFAB({
               }}
             >
               <StickyNote className="h-4 w-4" />
-              + Note
+              Note
             </Button>
 
             <Separator className="my-1" />
@@ -109,7 +111,7 @@ export function DevLogFAB({
                 }}
               >
                 <List className="h-4 w-4" />
-                View Entries ({entryCount})
+                View Entries{pageEntryCount > 0 ? ` (${pageEntryCount})` : ''}
               </Button>
             ) : (
               <div className="flex items-center gap-2 h-9 px-3 text-sm text-muted-foreground">

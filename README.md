@@ -24,11 +24,14 @@ All data is stored locally in a SQLite database (`.devlog/devlog.db`). Nothing i
 
 ## Features
 
-- **Page-scoped entries** — each entry is tagged with the page URL where it was created
-- **Badge count** — the B button shows a red badge with the number of open entries for the current page
+- **Page-scoped entries** — each entry is tagged with the full page URL where it was created
+- **Smart page matching** — entries logged on `/ops/quotes/abc-123` appear on any `/ops/quotes/*` page (UUID and numeric ID segments are matched as a group)
+- **Badge count** — the B button shows a red badge with the number of open entries for the current page/section
+- **Quick resolve** — checkmark toggle in the entries list to mark items complete/incomplete without opening them
 - **Mark as Resolved** — toggle entries as resolved (strikethrough in the viewer)
 - **File attachments** — upload screenshots and text files, stored on the filesystem or as SQLite blobs
-- **Project-level view** — "All Pages" tab shows every entry across the project with page path column
+- **Project-level view** — "All Pages" tab shows every entry across the project with shortened page paths (full path on hover)
+- **Smart View Entries** — shows entry count for current page, or opens to "All Pages" when no entries exist on the current page
 - **Export** — download all entries as JSON or Markdown, grouped by page
 - **Claude Code integration** — slash commands (`/devlog` to read entries, `/install-devlog` for setup) and a "Copy for Claude" button that formats entries with local file paths
 - **Zero external dependencies** — only requires `better-sqlite3` (no Redis, no Postgres, no cloud services)

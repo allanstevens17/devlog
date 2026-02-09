@@ -345,6 +345,11 @@ export function EntryFormDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Page URL */}
+            <div className="text-xs text-muted-foreground font-mono truncate" title={entry?.pageUrl || (typeof window !== 'undefined' ? window.location.href : '')}>
+              {entry?.pageUrl || (typeof window !== 'undefined' ? window.location.href : '')}
+            </div>
+
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="devlog-title">Title</Label>

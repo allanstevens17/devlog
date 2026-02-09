@@ -186,8 +186,14 @@ export function listEntries(options: {
   const params: Record<string, unknown> = {};
 
   if (options.pagePath) {
-    conditions.push('e.page_path = @pagePath');
-    params.pagePath = options.pagePath;
+    const { prefix, isExact } = getPagePrefix(options.pagePath);
+    if (isExact) {
+      conditions.push('e.page_path = @pagePath');
+      params.pagePath = prefix;
+    } else {
+      conditions.push('e.page_path LIKE @pagePath');
+      params.pagePath = prefix + '%';
+    }
   }
   if (options.type) {
     conditions.push('e.type = @type');
@@ -226,8 +232,14 @@ export function listEntries(options: {
   const countConditions: string[] = ['e.is_complete = 0'];
   const countParams: Record<string, unknown> = {};
   if (options.pagePath) {
-    countConditions.push('e.page_path = @pagePath');
-    countParams.pagePath = options.pagePath;
+    const { prefix, isExact } = getPagePrefix(options.pagePath);
+    if (isExact) {
+      countConditions.push('e.page_path = @pagePath');
+      countParams.pagePath = prefix;
+    } else {
+      countConditions.push('e.page_path LIKE @pagePath');
+      countParams.pagePath = prefix + '%';
+    }
   }
   const countWhere = `WHERE ${countConditions.join(' AND ')}`;
   const openCount = (
@@ -426,19 +438,55 @@ export function deleteAttachment(id: number): boolean {
   return result.changes > 0;
 }
 
+// --- Path Prefix Matching ---
+
+/**
+ * Extracts the route prefix from a pathname for fuzzy page matching.
+ * e.g., '/ops/quotes/e75f3643-b2e0-...' → '/ops/quotes/'
+ * e.g., '/ops/leads/123' → '/ops/leads/'
+ * e.g., '/ops/quotes' → '/ops/quotes'
+ * Static paths (no dynamic segment) match exactly.
+ */
+function getPagePrefix(pagePath: string): { prefix: string; isExact: boolean } {
+  // UUID pattern or numeric ID as last segment
+  const dynamicSegmentPattern = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const numericIdPattern = /\/\d+$/;
+
+  if (dynamicSegmentPattern.test(pagePath) || numericIdPattern.test(pagePath)) {
+    // Strip the dynamic segment, keep the trailing slash for LIKE prefix matching
+    const prefix = pagePath.replace(/\/[^/]+$/, '/');
+    return { prefix, isExact: false };
+  }
+
+  return { prefix: pagePath, isExact: true };
+}
+
 // --- Count ---
 
 export function getOpenCount(pagePath?: string): { openCount: number; totalCount: number } {
   const database = getDb();
 
   if (pagePath) {
-    const open = (
-      database.prepare('SELECT COUNT(*) as count FROM entries WHERE is_complete = 0 AND page_path = ?').get(pagePath) as { count: number }
-    ).count;
-    const total = (
-      database.prepare('SELECT COUNT(*) as count FROM entries WHERE page_path = ?').get(pagePath) as { count: number }
-    ).count;
-    return { openCount: open, totalCount: total };
+    const { prefix, isExact } = getPagePrefix(pagePath);
+
+    if (isExact) {
+      const open = (
+        database.prepare('SELECT COUNT(*) as count FROM entries WHERE is_complete = 0 AND page_path = ?').get(prefix) as { count: number }
+      ).count;
+      const total = (
+        database.prepare('SELECT COUNT(*) as count FROM entries WHERE page_path = ?').get(prefix) as { count: number }
+      ).count;
+      return { openCount: open, totalCount: total };
+    } else {
+      const likePattern = prefix + '%';
+      const open = (
+        database.prepare('SELECT COUNT(*) as count FROM entries WHERE is_complete = 0 AND page_path LIKE ?').get(likePattern) as { count: number }
+      ).count;
+      const total = (
+        database.prepare('SELECT COUNT(*) as count FROM entries WHERE page_path LIKE ?').get(likePattern) as { count: number }
+      ).count;
+      return { openCount: open, totalCount: total };
+    }
   }
 
   const open = (database.prepare('SELECT COUNT(*) as count FROM entries WHERE is_complete = 0').get() as { count: number }).count;

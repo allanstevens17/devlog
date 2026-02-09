@@ -27,13 +27,18 @@ function DevLogWidgetInner() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [globalTotalCount, setGlobalTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const refreshCount = useCallback(async () => {
     try {
-      const result = await devlogApi.getCount(pathname);
-      setOpenCount(result.openCount);
-      setTotalCount(result.totalCount);
+      const [pageResult, globalResult] = await Promise.all([
+        devlogApi.getCount(pathname),
+        devlogApi.getCount(),
+      ]);
+      setOpenCount(pageResult.openCount);
+      setTotalCount(pageResult.totalCount);
+      setGlobalTotalCount(globalResult.totalCount);
     } catch {
       // Silently fail — DevLog DB may not be initialized yet
     }
@@ -51,7 +56,11 @@ function DevLogWidgetInner() {
     setMenuOpen(false);
   };
 
+  const [viewerDefaultTab, setViewerDefaultTab] = useState<'page' | 'all'>('page');
+
   const handleViewEntries = () => {
+    // If no entries on this page, default to "All Pages" tab
+    setViewerDefaultTab(totalCount > 0 ? 'page' : 'all');
     setViewerOpen(true);
     setMenuOpen(false);
   };
@@ -84,7 +93,8 @@ function DevLogWidgetInner() {
         onMenuOpenChange={setMenuOpen}
         onNewEntry={handleNewEntry}
         onViewEntries={handleViewEntries}
-        entryCount={totalCount}
+        entryCount={globalTotalCount}
+        pageEntryCount={totalCount}
       />
 
       <EntryFormDialog
@@ -100,6 +110,7 @@ function DevLogWidgetInner() {
         onOpenChange={setViewerOpen}
         onEditEntry={handleEditEntry}
         refreshKey={refreshKey}
+        defaultTab={viewerDefaultTab}
       />
     </>
   );

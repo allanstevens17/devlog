@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, ListTodo, Bug, StickyNote } from 'lucide-react';
+import { Download, ListTodo, Bug, StickyNote, Check } from 'lucide-react';
 import { devlogApi } from '@/lib/devlog/api';
 import {
   ENTRY_TYPE_LABELS,
@@ -42,6 +42,7 @@ interface EntriesViewerDialogProps {
   onOpenChange: (open: boolean) => void;
   onEditEntry: (entry: DevLogEntry) => void;
   refreshKey: number;
+  defaultTab?: 'page' | 'all';
 }
 
 const TYPE_ICONS: Record<EntryType, React.ReactNode> = {
@@ -63,6 +64,16 @@ const PRIORITY_BADGE_STYLES: Record<Priority, string> = {
   low: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400',
 };
 
+/** Shorten a page path by stripping dynamic segments (UUIDs, numeric IDs) */
+function shortenPagePath(pagePath: string): string {
+  const uuidPattern = /\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const numericIdPattern = /\/\d+$/;
+  if (uuidPattern.test(pagePath) || numericIdPattern.test(pagePath)) {
+    return pagePath.replace(/\/[^/]+$/, '');
+  }
+  return pagePath;
+}
+
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr + 'Z'); // SQLite dates are UTC
   const now = new Date();
@@ -83,11 +94,13 @@ function EntryTable({
   showPageColumn,
   hideCompleted,
   onEdit,
+  onToggleComplete,
 }: {
   entries: DevLogEntry[];
   showPageColumn: boolean;
   hideCompleted: boolean;
   onEdit: (entry: DevLogEntry) => void;
+  onToggleComplete: (entry: DevLogEntry) => void;
 }) {
   const filtered = hideCompleted
     ? entries.filter((e) => !e.isComplete)
@@ -105,6 +118,7 @@ function EntryTable({
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10"></TableHead>
           <TableHead className="w-24">ID</TableHead>
           <TableHead className="w-20">Type</TableHead>
           <TableHead>Title</TableHead>
@@ -120,6 +134,24 @@ function EntryTable({
             className="cursor-pointer hover:bg-muted/50"
             onClick={() => onEdit(entry)}
           >
+            <TableCell
+              className="text-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComplete(entry);
+              }}
+            >
+              <button
+                className={cn(
+                  'h-5 w-5 rounded border flex items-center justify-center transition-colors',
+                  entry.isComplete
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-muted-foreground/30 hover:border-primary/50'
+                )}
+              >
+                {entry.isComplete && <Check className="h-3 w-3" />}
+              </button>
+            </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
               {entry.entryId}
             </TableCell>
@@ -168,8 +200,8 @@ function EntryTable({
               )}
             </TableCell>
             {showPageColumn && (
-              <TableCell className="text-xs text-muted-foreground font-mono truncate max-w-[160px]">
-                {entry.pagePath}
+              <TableCell className="text-xs text-muted-foreground font-mono truncate max-w-[160px]" title={entry.pagePath}>
+                {shortenPagePath(entry.pagePath)}
               </TableCell>
             )}
             <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
@@ -187,13 +219,21 @@ export function EntriesViewerDialog({
   onOpenChange,
   onEditEntry,
   refreshKey,
+  defaultTab = 'page',
 }: EntriesViewerDialogProps) {
   const pathname = usePathname();
   const [pageEntries, setPageEntries] = useState<DevLogEntry[]>([]);
   const [allEntries, setAllEntries] = useState<DevLogEntry[]>([]);
   const [hideCompleted, setHideCompleted] = useState(false);
-  const [activeTab, setActiveTab] = useState('page');
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [exporting, setExporting] = useState(false);
+
+  // Sync default tab when dialog opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab(defaultTab);
+    }
+  }, [open, defaultTab]);
 
   const loadEntries = useCallback(async () => {
     if (!open) return;
@@ -212,6 +252,15 @@ export function EntriesViewerDialog({
   useEffect(() => {
     loadEntries();
   }, [loadEntries, refreshKey]);
+
+  const handleToggleComplete = async (entry: DevLogEntry) => {
+    try {
+      await devlogApi.updateEntry(entry.entryId, { isComplete: !entry.isComplete });
+      loadEntries();
+    } catch (err) {
+      console.error('Failed to toggle complete:', err);
+    }
+  };
 
   const handleExport = async (format: 'json' | 'markdown') => {
     setExporting(true);
@@ -233,7 +282,7 @@ export function EntriesViewerDialog({
 
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={(v) => setActiveTab(v as 'page' | 'all')}
           className="flex-1 overflow-hidden flex flex-col"
         >
           <div className="flex items-center justify-between">
@@ -291,6 +340,7 @@ export function EntriesViewerDialog({
                 showPageColumn={false}
                 hideCompleted={hideCompleted}
                 onEdit={onEditEntry}
+                onToggleComplete={handleToggleComplete}
               />
             </TabsContent>
 
@@ -300,6 +350,7 @@ export function EntriesViewerDialog({
                 showPageColumn={true}
                 hideCompleted={hideCompleted}
                 onEdit={onEditEntry}
+                onToggleComplete={handleToggleComplete}
               />
             </TabsContent>
           </div>
