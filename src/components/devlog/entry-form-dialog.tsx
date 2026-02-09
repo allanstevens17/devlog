@@ -272,7 +272,20 @@ export function EntryFormDialog({
     try {
       const freshEntry = await devlogApi.getEntry(savedEntryId);
       const text = formatCopyForClaude(freshEntry);
-      await navigator.clipboard.writeText(text);
+      // Try clipboard API first, fall back to execCommand for contexts
+      // where the async fetch above invalidates the user gesture
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
