@@ -12,6 +12,7 @@ export interface DevLogEntry {
   description: string;
   priority: Priority | null;
   isComplete: boolean;
+  submittedBy: string | null;
   pageUrl: string;
   pagePath: string;
   userAgent: string | null;
@@ -37,6 +38,7 @@ export interface CreateEntryDto {
   title: string;
   description?: string;
   priority?: Priority;
+  submittedBy?: string;
   pageUrl: string;
   pagePath: string;
   userAgent?: string;

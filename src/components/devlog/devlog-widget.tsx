@@ -29,6 +29,7 @@ function DevLogWidgetInner() {
   const [totalCount, setTotalCount] = useState(0);
   const [globalTotalCount, setGlobalTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [userName, setUserName] = useState<string | null>(null);
 
   const refreshCount = useCallback(async () => {
     try {
@@ -48,6 +49,10 @@ function DevLogWidgetInner() {
   useEffect(() => {
     refreshCount();
   }, [refreshCount]);
+
+  const handleUserNameResolved = useCallback((name: string) => {
+    setUserName(name);
+  }, []);
 
   const handleNewEntry = (type: EntryType) => {
     setFormType(type);
@@ -95,6 +100,7 @@ function DevLogWidgetInner() {
         onViewEntries={handleViewEntries}
         entryCount={globalTotalCount}
         pageEntryCount={totalCount}
+        onUserNameResolved={handleUserNameResolved}
       />
 
       <EntryFormDialog
@@ -103,6 +109,7 @@ function DevLogWidgetInner() {
         type={formType}
         entry={editingEntry}
         onSaved={handleSaved}
+        submittedBy={userName}
       />
 
       <EntriesViewerDialog

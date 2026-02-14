@@ -49,6 +49,22 @@ interface EntryFormDialogProps {
   type: EntryType;
   entry?: DevLogEntry | null;
   onSaved: () => void;
+  submittedBy?: string | null;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr + 'Z'); // SQLite dates are UTC
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function getDefaultNoteTitle(): string {
@@ -106,6 +122,7 @@ export function EntryFormDialog({
   type,
   entry,
   onSaved,
+  submittedBy,
 }: EntryFormDialogProps) {
   const isEditing = !!entry;
 
@@ -156,9 +173,8 @@ export function EntryFormDialog({
     }
   }, [open, entry, type]);
 
-  // Detect if form has unsaved changes (for editing mode X-close behavior)
+  // Detect if form has unsaved changes
   const isDirty = useMemo(() => {
-    if (!isEditing) return true; // New entries always prompt
     const snap = initialSnapshot.current;
     return (
       title !== snap.title ||
@@ -167,7 +183,7 @@ export function EntryFormDialog({
       isComplete !== snap.isComplete ||
       pendingFiles.length > 0
     );
-  }, [isEditing, title, description, priority, isComplete, pendingFiles]);
+  }, [title, description, priority, isComplete, pendingFiles]);
 
   const uploadPendingFiles = useCallback(
     async (entryId: string) => {
@@ -214,6 +230,7 @@ export function EntryFormDialog({
             title: title.trim(),
             description,
             priority: type !== 'note' && priority ? (priority as Priority) : undefined,
+            submittedBy: submittedBy || undefined,
             pageUrl: window.location.href,
             pagePath: window.location.pathname,
             userAgent: navigator.userAgent,
@@ -246,6 +263,7 @@ export function EntryFormDialog({
       uploadPendingFiles,
       onSaved,
       onOpenChange,
+      submittedBy,
     ]
   );
 
@@ -313,19 +331,13 @@ export function EntryFormDialog({
   // Handle the X button / onOpenChange from Dialog
   const handleDialogOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      // User is trying to close the dialog
-      if (isEditing) {
-        // Editing existing: only prompt if dirty
-        if (isDirty) {
-          setConfirmOpen(true);
-          return;
-        }
-        // No changes — close silently
-        onOpenChange(false);
-      } else {
-        // New entry — always show discard warning
+      // User is trying to close — only prompt if there are unsaved changes
+      if (isDirty) {
         setConfirmOpen(true);
+        return;
       }
+      // No changes — close silently
+      onOpenChange(false);
       return;
     }
     onOpenChange(nextOpen);
@@ -355,6 +367,11 @@ export function EntryFormDialog({
                 </Badge>
               )}
             </DialogTitle>
+            {entry?.submittedBy && (
+              <div className="text-xs text-muted-foreground">
+                Submitted by {entry.submittedBy} {formatRelativeTime(entry.createdAt)}
+              </div>
+            )}
           </DialogHeader>
 
           <div className="space-y-4 py-2">

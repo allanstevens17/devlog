@@ -152,8 +152,13 @@ function EntryTable({
                 {entry.isComplete && <Check className="h-3 w-3" />}
               </button>
             </TableCell>
-            <TableCell className="font-mono text-xs text-muted-foreground">
-              {entry.entryId}
+            <TableCell>
+              <div className="font-mono text-xs text-muted-foreground">{entry.entryId}</div>
+              {entry.submittedBy && (
+                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                  Submitted by {entry.submittedBy}
+                </div>
+              )}
             </TableCell>
             <TableCell>
               <Badge

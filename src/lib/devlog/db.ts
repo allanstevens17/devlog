@@ -93,6 +93,12 @@ export function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_attachments_entry_id ON attachments(entry_id);
   `);
 
+  // Migration: add submitted_by column if missing
+  const columns = db.prepare("PRAGMA table_info(entries)").all() as { name: string }[];
+  if (!columns.some((c) => c.name === 'submitted_by')) {
+    db.exec("ALTER TABLE entries ADD COLUMN submitted_by TEXT DEFAULT NULL");
+  }
+
   return db;
 }
 
@@ -123,6 +129,7 @@ interface EntryRow {
   description: string;
   priority: string | null;
   is_complete: number;
+  submitted_by: string | null;
   page_url: string;
   page_path: string;
   user_agent: string | null;
@@ -151,6 +158,7 @@ function mapEntry(row: EntryRow, attachments: Attachment[] = []): DevLogEntry {
     description: row.description || '',
     priority: row.priority as DevLogEntry['priority'],
     isComplete: row.is_complete === 1,
+    submittedBy: row.submitted_by,
     pageUrl: row.page_url,
     pagePath: row.page_path,
     userAgent: row.user_agent,
@@ -267,8 +275,8 @@ export function createEntry(dto: CreateEntryDto): DevLogEntry {
 
   database
     .prepare(
-      `INSERT INTO entries (entry_id, type, title, description, priority, page_url, page_path, user_agent)
-       VALUES (@entryId, @type, @title, @description, @priority, @pageUrl, @pagePath, @userAgent)`
+      `INSERT INTO entries (entry_id, type, title, description, priority, submitted_by, page_url, page_path, user_agent)
+       VALUES (@entryId, @type, @title, @description, @priority, @submittedBy, @pageUrl, @pagePath, @userAgent)`
     )
     .run({
       entryId,
@@ -276,6 +284,7 @@ export function createEntry(dto: CreateEntryDto): DevLogEntry {
       title: dto.title,
       description: dto.description || '',
       priority: dto.priority || null,
+      submittedBy: dto.submittedBy || null,
       pageUrl: dto.pageUrl,
       pagePath: dto.pagePath,
       userAgent: dto.userAgent || null,
